@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Nomeações - CMC</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        :root { --cmc-blue: #004a8d; --light-bg: #f4f7f6; }
+        body { background-color: var(--light-bg); font-family: 'Segoe UI', sans-serif; }
+        .navbar-cmc { background: white; border-bottom: 4px solid var(--cmc-blue); padding: 10px 0; margin-bottom: 30px; }
+        .logo-img { height: 85px; width: auto; }
+        
+        .card-form { border: none; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); padding: 35px; background: white; }
+        .titulo-sessao { color: var(--cmc-blue); font-weight: 800; text-transform: uppercase; border-left: 5px solid var(--cmc-blue); padding-left: 15px; margin-bottom: 25px; }
+
+        /* ======== ESTILO PDF A4 EXATO ======== */
+        .pdf-container { display: none; width: 210mm; background: white; font-family: "Arial", sans-serif; color: #000; }
+        .pdf-page { 
+            width: 210mm; 
+            height: 296mm; 
+            box-sizing: border-box;
+            border: 1px solid #333; 
+            border-radius: 15px; 
+            margin: 0; 
+            padding: 15mm 20mm; 
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            background: white;
+        }
+        .pdf-content { flex-grow: 1; }
+        
+        .pdf-header-grid { display: grid; grid-template-columns: 100px 1fr; align-items: center; gap: 20px; margin-bottom: 40px; }
+        .pdf-logo { width: 100px; }
+        .pdf-header-text { text-align: left; border-left: 1.5px solid #000; padding-left: 20px; }
+        .pdf-titulo-doc { font-size: 13pt; font-weight: 900; color: #000; text-transform: uppercase; line-height: 1.1; display: block; }
+        .pdf-subtitulo-doc { font-size: 9pt; color: #333; text-transform: uppercase; margin-top: 4px; display: block; font-weight: bold; }
+        
+        .f1-texto-corpo { text-align: justify; text-indent: 40px; font-size: 11.5pt; line-height: 1.8; margin: 35px 0; }
+
+        /* Grade Arredondada */
+        .grid-dados { width: 100%; border: 1px solid #000; border-radius: 10px; overflow: hidden; margin-bottom: 15px; border-collapse: separate; border-spacing: 0; }
+        .grid-row { display: flex; border-bottom: 1px solid #000; min-height: 12mm; }
+        .grid-row:last-child { border-bottom: none; }
+        
+        .grid-item { display: flex; flex: 1; border-right: 1px solid #000; }
+        .grid-item:last-child { border-right: none; }
+        
+        .label-c { font-weight: bold; padding: 6px 12px; border-right: 1px solid #000; width: 160px; flex-shrink: 0; text-transform: uppercase; font-size: 7.5pt; background: #ececec; display: flex; align-items: center; }
+        .valor-c { padding: 6px 12px; flex: 1; color: #000; display: flex; align-items: center; font-size: 10.5pt; font-weight: bold; }
+        
+        .pdf-data-footer { text-align: right; margin-top: 50px; font-size: 11pt; }
+        .pdf-assinatura-area { margin-top: 80px; text-align: center; }
+        .pdf-linha { border-top: 1.2px solid #000; width: 300px; margin: 0 auto 8px auto; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar-cmc">
+    <div class="container d-flex align-items-center justify-content-between">
+        <img src="brasao_cmc.png" alt="Logo CMC" class="logo-img">
+        <h4 class="mb-0 fw-bold" style="color: var(--cmc-blue)">Gestão de Nomeações</h4>
+    </div>
+</nav>
+
+<div class="container pb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <div class="card-form shadow-sm">
+                <h5 class="titulo-sessao">Formulário de Indicação de Nomeação</h5>
+                <form id="formIndicacao" class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label fw-bold">O(A) Vereador(a)</label>
+                        <input type="text" id="f1_ver" class="form-control" placeholder="Nome do parlamentar solicitante" required>
+                    </div>
+
+                    <div class="col-12">
+                        <label class="form-label fw-bold">Pessoa Indicada</label>
+                        <input type="text" id="f1_nom" class="form-control" placeholder="Nome completo do indicado" required>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Lotação</label>
+                        <select id="f1_lot" class="form-select" onchange="filtCargos()" required>
+                            <option value="">Carregando lotações...</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Cargo</label>
+                        <select id="f1_car" class="form-select" onchange="vincSim()" required>
+                            <option value="">Selecione a lotação primeiro</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Símbolo</label>
+                        <input type="text" id="f1_sim" class="form-control bg-light" readonly>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Data de Nomeação</label>
+                        <input type="date" id="f1_dat" class="form-control" required>
+                    </div>
+
+                    <div class="col-12 mt-5 text-end">
+                        <button type="button" onclick="gerarPDF()" class="btn btn-primary btn-lg px-5 shadow-sm">
+                            <i class="bi bi-file-earmark-pdf-fill me-2"></i> GERAR FORMULÁRIO DE INDICAÇÃO
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="pdfIndicacao" class="pdf-container">
+    <div class="pdf-page">
+        <div class="pdf-content">
+            <div class="pdf-header-grid">
+                <img src="brasao_cmc.png" class="pdf-logo">
+                <div class="pdf-header-text">
+                    <span class="pdf-titulo-doc">Indicação de Nomeação</span>
+                    <span class="pdf-subtitulo-doc">Câmara Municipal de Curitiba</span>
+                </div>
+            </div>
+            
+            <p style="font-weight: bold; font-size: 11pt; text-transform: uppercase; margin-bottom: 30px;">Excelentíssimo Senhor Presidente da Comissão Executiva</p>
+            
+            <p class="f1-texto-corpo">
+                O (A) Vereador (a) <span id="o1_ver" style="font-weight: bold; text-transform: uppercase;"></span>, com assento nesta Casa de Leis, no uso de suas prerrogativas regimentais, indica a pessoa abaixo identificada para exercer Cargo em Comissão desta Câmara Municipal de Curitiba, prestando serviços na estrutura de apoio parlamentar do respectivo Gabinete, declarando, para os devidos fins, que o(a) indicado(a) preenche os requisitos legais para a investidura do cargo.
+            </p>
+
+            <div class="grid-dados">
+                <div class="grid-row">
+                    <div class="grid-item"><div class="label-c">Nome Completo</div><div class="valor-c" id="o1_nom"></div></div>
+                </div>
+                <div class="grid-row">
+                    <div class="grid-item"><div class="label-c">Lotação</div><div class="valor-c" id="o1_lot"></div></div>
+                </div>
+                <div class="grid-row">
+                    <div class="grid-item" style="flex: 1.5;"><div class="label-c">Cargo</div><div class="valor-c" id="o1_car"></div></div>
+                    <div class="grid-item" style="flex: 1;"><div class="label-c" style="width: 100px;">Símbolo</div><div class="valor-c" id="o1_sim"></div></div>
+                </div>
+                <div class="grid-row">
+                    <div class="grid-item"><div class="label-c">Data de Início</div><div class="valor-c" id="o1_dat"></div></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="pdf-data-footer">Curitiba, <span id="o1_hoje"></span>.</div>
+        
+        <div class="pdf-assinatura-area">
+            <div class="pdf-linha"></div>
+            <span style="font-size:9.5pt; font-weight:bold; text-transform:uppercase">Assinatura do (a) Vereador (a)</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    const URL_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTfbQGQlpSRzsc_RJ4BaZ-qjgJvcA6qduKX5EmgKSqVyNTzPcxvLJviA0JF0J3D1zf5Y7D8XZ5GctEc/pub?gid=0&single=true&output=csv';
+    const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz-_oRbU67eLg1uG7-DQzLQVvVQDPrhN8Lnen8bkv1Akw5_42y008LOyAABAJaWNphfGA/exec';
+
+    let db_cargos = [];
+
+    async function init() {
+        try {
+            const res = await fetch(URL_CSV + `?t=${Date.now()}`);
+            const csv = await res.text();
+            db_cargos = csv.split(/\r?\n/).slice(1).map(l => {
+                const col = l.split(',');
+                return { 
+                    lot: col[0]?.trim(), 
+                    car: col[1]?.trim(), 
+                    sim: col[2]?.trim() 
+                };
+            }).filter(i => i.lot);
+            
+            const selLot = document.getElementById('f1_lot');
+            const lotacoes = [...new Set(db_cargos.map(i => i.lot))];
+            selLot.innerHTML = '<option value="">Selecione a Lotação...</option>';
+            lotacoes.forEach(l => selLot.innerHTML += `<option value="${l}">${l}</option>`);
+        } catch(e) { console.error("Erro ao carregar banco de dados:", e); }
+    }
+
+    function filtCargos() {
+        const lot = document.getElementById('f1_lot').value;
+        const selCar = document.getElementById('f1_car');
+        selCar.innerHTML = '<option value="">Selecione o Cargo...</option>';
+        db_cargos.filter(i => i.lot === lot).forEach(i => selCar.innerHTML += `<option value="${i.car}">${i.car}</option>`);
+        document.getElementById('f1_sim').value = "";
+    }
+
+    function vincSim() {
+        const reg = db_cargos.find(i => i.lot === document.getElementById('f1_lot').value && i.car === document.getElementById('f1_car').value);
+        document.getElementById('f1_sim').value = reg ? reg.sim : "";
+    }
+
+    async function gerarPDF() {
+        if(!document.getElementById('formIndicacao').checkValidity()) return alert("Preencha todos os campos obrigatórios.");
+
+        document.getElementById('o1_ver').innerText = document.getElementById('f1_ver').value;
+        document.getElementById('o1_nom').innerText = document.getElementById('f1_nom').value;
+        document.getElementById('o1_lot').innerText = document.getElementById('f1_lot').value;
+        document.getElementById('o1_car').innerText = document.getElementById('f1_car').value;
+        document.getElementById('o1_sim').innerText = "CC - " + document.getElementById('f1_sim').value;
+        
+        const dataNom = new Date(document.getElementById('f1_dat').value);
+        document.getElementById('o1_dat').innerText = dataNom.toLocaleDateString('pt-BR', {timeZone: 'UTC'});
+        document.getElementById('o1_hoje').innerText = new Date().toLocaleDateString('pt-BR', {day:'numeric', month:'long', year:'numeric'});
+
+        const doc = document.getElementById('pdfIndicacao');
+        doc.style.display = 'block';
+
+        const opt = {
+            margin: 0,
+            filename: `Indicacao_${document.getElementById('f1_nom').value}.pdf`,
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(doc).save().then(async () => {
+            doc.style.display = 'none';
+            
+            const dados = {
+                vereador: document.getElementById('f1_ver').value,
+                nomeado: document.getElementById('f1_nom').value,
+                lotacao: document.getElementById('f1_lot').value,
+                cargo: document.getElementById('f1_car').value,
+                simbolo: document.getElementById('f1_sim').value,
+                dataInicio: document.getElementById('f1_dat').value
+            };
+            
+            await fetch(SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(dados) });
+            alert("Formulário gerado e dados registrados com sucesso!");
+        });
+    }
+
+    window.onload = init;
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
